@@ -16,11 +16,8 @@ st.set_page_config(
     layout="wide"
 )
 
-
 # Load environment variables from .env file
 load_dotenv()
-
-
 
 # Custom CSS for better styling
 st.markdown("""
@@ -131,7 +128,7 @@ st.markdown("""
     <div class="header-container">
         <div class="divider"></div>
         <h1 class="header-text">ALY 6080 Group 1 Report Chat Bot</h1>
-        <p class="header-text" style="font-size: 0.9em;">Built by Syed Faizan Team Lead of Group 1,ALY 6080, Northeastern University</p>
+        <p class="header-text" style="font-size: 0.9em;">Built by Syed Faizan Team Lead of Group 1, ALY 6080, Northeastern University</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -146,31 +143,6 @@ with col2:
 
 with col3:
     st.write("")  # Empty column for spacing
-
-
-col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-with col1:
-    st.image("images/faizan.jpeg", use_column_width=True, caption="Team Lead: Syed Faizan")
-
-with col2:
-    st.image("images/Christiana.jpeg", use_column_width=True, caption="Christiana")
-
-with col3:
-    st.image("images/Pravalika.jpeg", use_column_width=True, caption="Pravalika")
-
-with col4:
-    st.image("images/VrajShah.jpeg", use_column_width=True, caption="Vraj Shah")
-
-with col5:
-    st.image("images/Emelia.jpeg", use_column_width=True, caption="Emelia Doku")
-
-with col6:
-    st.image("images/Schicheng.jpeg", use_column_width=True, caption="Shicheng Wan")
-
-
-
-
 
 # Introduction text in chat container
 with st.container():
@@ -191,10 +163,15 @@ if not openai_api_key:
 
 openai.api_key = openai_api_key
 
-# Initialize ChromaDB client
+# Initialize FAISS vector store with dangerous deserialization
 try:
     embeddings = OpenAIEmbeddings()
-    vector_store = FAISS.load_local("db", embeddings)
+    vector_store = FAISS.load_local("db", embeddings, allow_dangerous_deserialization=True)
+    st.success("FAISS vector store loaded successfully!")
+    st.warning(
+        "⚠️ Dangerous deserialization is enabled. Ensure the FAISS index (`db`) is from a trusted source "
+        "to avoid potential security risks."
+    )
 except Exception as e:
     st.error(f"⚠️ Error connecting to the database: {str(e)}")
     st.stop()
@@ -204,8 +181,6 @@ def rag(query, n_results=5):
     try:
         docs = vector_store.similarity_search(query, k=n_results)
         joined_information = '; '.join([doc.page_content for doc in docs])
-
-        
         messages = [
             {
                 "role": "system",
@@ -243,14 +218,32 @@ with chat_container:
                     <div style='margin-bottom: 0.5rem;'>📘 Assistant: {message['response']}</div>
                 </div>
             """, unsafe_allow_html=True)
-            if message.get("sources"):
-                with st.expander("📚 View Source Documents"):
-                    for idx, source in enumerate(message["sources"], 1):
-                        st.markdown(f"""
-                            <div class='source-box'>
-                                {source}
-                            </div>
-                        """, unsafe_allow_html=True)
+
+# Query input with examples
+user_query = st.text_input(
+    label="Ask your question about the ALY 6080 project",
+    help="Type your question or click an example below",
+    placeholder="Example: What are the key trends in housing stability?",
+    value=st.session_state.current_question,
+    key="user_input"
+)
+
+if st.button("Ask", type="primary", use_container_width=True):
+    if not user_query:
+        st.warning("Please enter a question!")
+    else:
+        st.session_state.chat_history.append({"role": "user", "content": user_query})
+        with st.spinner("🔍 Analyzing sources..."):
+            try:
+                response, sources = rag(user_query)
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "response": response,
+                    "sources": sources
+                })
+                st.rerun()
+            except Exception as e:
+                st.error(f"Sorry, I encountered an error: {str(e)}")
 
 # Query input with examples
 st.markdown("<div class='chat-input'>", unsafe_allow_html=True)
