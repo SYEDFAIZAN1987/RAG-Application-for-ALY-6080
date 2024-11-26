@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pprint import pprint
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, SentenceTransformersTokenTextSplitter
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import InMemoryDocstore
 from langchain.embeddings.openai import OpenAIEmbeddings
 import openai
 
@@ -52,19 +52,21 @@ for text in texts_char_splitted:
 
 print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 
-# %% Create FAISS Vector Store
+# %% Create In-Memory Vector Store
 # Generate embeddings for text chunks
 embeddings = OpenAIEmbeddings()
 
-# Create a FAISS in-memory vector store
-vector_store = FAISS.from_texts(texts=texts_token_splitted, embedding=embeddings)
+# Store text chunks and embeddings in memory
+docstore = InMemoryDocstore.from_texts(
+    texts=texts_token_splitted, embedding=embeddings
+)
 
 # %% Define RAG Query Function
 def rag(query, n_results=5):
     """Retrieve and generate response based on the query."""
     try:
-        # Query the FAISS vector store
-        docs = vector_store.similarity_search(query, k=n_results)
+        # Query the in-memory vector store
+        docs = docstore.similarity_search(query, k=n_results)
         joined_information = "; ".join([doc.page_content for doc in docs])
 
         # Prepare conversation with context and query
