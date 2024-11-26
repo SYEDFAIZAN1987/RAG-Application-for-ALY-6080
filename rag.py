@@ -56,15 +56,10 @@ print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 embeddings = OpenAIEmbeddings()
 faiss_index_path = "faiss_index"
 
-if os.path.exists(faiss_index_path):
-    # Load FAISS index (allowing dangerous deserialization for trusted local files)
-    docstore = FAISS.load_local(faiss_index_path, embeddings, allow_dangerous_deserialization=True)
-    print("Loaded FAISS index from local storage.")
-else:
-    # Create a new FAISS index and save it
-    docstore = FAISS.from_texts(texts_token_splitted, embedding=embeddings)
-    docstore.save_local(faiss_index_path)
-    print("Created and saved FAISS index to local storage.")
+# Always rebuild the FAISS index to avoid deserialization errors
+docstore = FAISS.from_texts(texts_token_splitted, embedding=embeddings)
+docstore.save_local(faiss_index_path)
+print("Rebuilt and saved FAISS index to local storage.")
 
 # %% Define RAG Query Function
 def rag(query, n_results=5):
