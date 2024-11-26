@@ -52,18 +52,16 @@ for text in texts_char_splitted:
 
 print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 
-# %% Create FAISS Vector Store
-# Generate embeddings for text chunks
+# %% Create or Load FAISS Vector Store
 embeddings = OpenAIEmbeddings()
-
-# Save or load FAISS vector store
 faiss_index_path = "faiss_index"
+
 if os.path.exists(faiss_index_path):
-    # Load FAISS index with dangerous deserialization (use with caution)
+    # Load FAISS index (allowing dangerous deserialization for trusted local files)
     docstore = FAISS.load_local(faiss_index_path, embeddings, allow_dangerous_deserialization=True)
     print("Loaded FAISS index from local storage.")
 else:
-    # Create and save the FAISS index
+    # Create a new FAISS index and save it
     docstore = FAISS.from_texts(texts_token_splitted, embedding=embeddings)
     docstore.save_local(faiss_index_path)
     print("Created and saved FAISS index to local storage.")
