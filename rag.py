@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pprint import pprint
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, SentenceTransformersTokenTextSplitter
-from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OpenAIEmbeddings
 import openai
 
@@ -33,7 +33,6 @@ char_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=200  # Set overlap to 200 characters (adjust as needed)
 )
 
-
 texts_char_splitted = char_splitter.split_text('\n\n'.join(cleaned_texts))
 print(f"Number of chunks: {len(texts_char_splitted)}")
 
@@ -53,22 +52,27 @@ for text in texts_char_splitted:
 
 print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 
-# %% Create In-Memory Vector Store
+# %% Create FAISS Vector Store
 # Generate embeddings for text chunks
 embeddings = OpenAIEmbeddings()
 
-# Store text chunks and embeddings in memory
-# Allow dangerous deserialization explicitly (use with caution)
-docstore = InMemoryDocstore.from_texts(
-    texts=texts_token_splitted, embedding=embeddings, allow_dangerous_deserialization=True
-)
-
+# Save or load FAISS vector store
+faiss_index_path = "faiss_index"
+if os.path.exists(faiss_index_path):
+    # Load FAISS index with dangerous deserialization (use with caution)
+    docstore = FAISS.load_local(faiss_index_path, embeddings, allow_dangerous_deserialization=True)
+    print("Loaded FAISS index from local storage.")
+else:
+    # Create and save the FAISS index
+    docstore = FAISS.from_texts(texts_token_splitted, embedding=embeddings)
+    docstore.save_local(faiss_index_path)
+    print("Created and saved FAISS index to local storage.")
 
 # %% Define RAG Query Function
 def rag(query, n_results=5):
     """Retrieve and generate response based on the query."""
     try:
-        # Query the in-memory vector store
+        # Query the FAISS vector store
         docs = docstore.similarity_search(query, k=n_results)
         joined_information = "; ".join([doc.page_content for doc in docs])
 
