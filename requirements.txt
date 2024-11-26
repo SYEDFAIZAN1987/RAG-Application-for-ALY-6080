@@ -1,7 +1,8 @@
-streamlit
+duckdb
 chromadb
-openai==0.28.0
 langchain
+openai
+dotenv
 pypdf
-sqlite3
+
 
