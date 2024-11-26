@@ -6,6 +6,7 @@ from pprint import pprint
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, SentenceTransformersTokenTextSplitter
 import chromadb
+from chromadb.config import Settings
 import openai
 
 # Load environment variables from .env file
@@ -51,8 +52,11 @@ for text in texts_char_splitted:
 
 print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 
-#%% Initialize Vector Database
-chroma_client = chromadb.PersistentClient(path="db")
+#%% Initialize Vector Database using DuckDB
+chroma_client = chromadb.PersistentClient(Settings(
+    chroma_db_impl="duckdb",  # Specify DuckDB as backend
+    persist_directory="db"    # Local directory for storing the database
+))
 chroma_collection = chroma_client.get_or_create_collection("aly6080")
 
 #%% Add documents to the database
