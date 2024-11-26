@@ -30,8 +30,9 @@ cleaned_texts = [re.sub(r'\d+\n.*?\n', '', text) for text in filtered_texts]
 char_splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", ". ", " ", ""],
     chunk_size=1000,
-    chunk_overlap=0.2
+    chunk_overlap=200  # Set overlap to 200 characters (adjust as needed)
 )
+
 
 texts_char_splitted = char_splitter.split_text('\n\n'.join(cleaned_texts))
 print(f"Number of chunks: {len(texts_char_splitted)}")
@@ -57,9 +58,11 @@ print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 embeddings = OpenAIEmbeddings()
 
 # Store text chunks and embeddings in memory
+# Allow dangerous deserialization explicitly (use with caution)
 docstore = InMemoryDocstore.from_texts(
-    texts=texts_token_splitted, embedding=embeddings
+    texts=texts_token_splitted, embedding=embeddings, allow_dangerous_deserialization=True
 )
+
 
 # %% Define RAG Query Function
 def rag(query, n_results=5):
