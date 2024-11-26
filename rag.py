@@ -1,12 +1,12 @@
-#%% Packages
+# %% Packages
 import os
 import re
 from dotenv import load_dotenv
 from pprint import pprint
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, SentenceTransformersTokenTextSplitter
-import chromadb
-from chromadb.config import Settings
+from langchain.vectorstores import FAISS
+from langchain.embeddings.openai import OpenAIEmbeddings
 import openai
 
 # Load environment variables from .env file
@@ -15,18 +15,18 @@ load_dotenv()
 # Ensure the OpenAI API key is set
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-#%% Load the PDF file
+# %% Load the PDF file
 project_report_file = "ALY_6080_Experential_learning_Group_1_Module_12_Capstone_Sponsor_Deliverable.pdf"
 reader = PdfReader(project_report_file)
 report_texts = [page.extract_text().strip() for page in reader.pages]
 
-#%% Filter out unnecessary sections (adjust as needed)
+# %% Filter out unnecessary sections (adjust as needed)
 filtered_texts = report_texts[5:-5]  # Modify indices based on the document structure
 
 # Remove headers/footers or other unwanted text patterns
 cleaned_texts = [re.sub(r'\d+\n.*?\n', '', text) for text in filtered_texts]
 
-#%% Split text into chunks
+# %% Split text into chunks
 char_splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", ". ", " ", ""],
     chunk_size=1000,
@@ -36,7 +36,7 @@ char_splitter = RecursiveCharacterTextSplitter(
 texts_char_splitted = char_splitter.split_text('\n\n'.join(cleaned_texts))
 print(f"Number of chunks: {len(texts_char_splitted)}")
 
-#%% Token splitting for efficient querying
+# %% Token splitting for efficient querying
 token_splitter = SentenceTransformersTokenTextSplitter(
     chunk_overlap=0.2,
     tokens_per_chunk=256
@@ -52,28 +52,20 @@ for text in texts_char_splitted:
 
 print(f"Number of tokenized chunks: {len(texts_token_splitted)}")
 
-#%% Initialize Vector Database using DuckDB
-chroma_client = chromadb.PersistentClient(Settings(
-    chroma_db_impl="duckdb",  # Specify DuckDB as backend
-    persist_directory="db"    # Local directory for storing the database
-))
-chroma_collection = chroma_client.get_or_create_collection("aly6080")
+# %% Create FAISS Vector Store
+# Generate embeddings for text chunks
+embeddings = OpenAIEmbeddings()
 
-#%% Add documents to the database
-ids = [str(i) for i in range(len(texts_token_splitted))]
-chroma_collection.add(
-    ids=ids,
-    documents=texts_token_splitted
-)
+# Create a FAISS in-memory vector store
+vector_store = FAISS.from_texts(texts=texts_token_splitted, embedding=embeddings)
 
-#%% Define RAG Query Function
+# %% Define RAG Query Function
 def rag(query, n_results=5):
     """Retrieve and generate response based on the query."""
     try:
-        # Query the database
-        res = chroma_collection.query(query_texts=[query], n_results=n_results)
-        docs = res["documents"][0]
-        joined_information = "; ".join([f"{doc}" for doc in docs])
+        # Query the FAISS vector store
+        docs = vector_store.similarity_search(query, k=n_results)
+        joined_information = "; ".join([doc.page_content for doc in docs])
 
         # Prepare conversation with context and query
         messages = [
@@ -95,7 +87,7 @@ def rag(query, n_results=5):
     except Exception as e:
         return f"Error generating response: {str(e)}"
 
-#%% Example Query
+# %% Example Query
 query = "What are the key findings regarding financial stability in the Greater Toronto Area?"
 response = rag(query=query, n_results=5)
 pprint(response)
