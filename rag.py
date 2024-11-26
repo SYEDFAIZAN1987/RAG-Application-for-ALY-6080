@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from pprint import pprint
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, SentenceTransformersTokenTextSplitter
-from langchain.vectorstores import InMemoryDocstore
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.embeddings import OpenAIEmbeddings
 import openai
 
 # Load environment variables from .env file
