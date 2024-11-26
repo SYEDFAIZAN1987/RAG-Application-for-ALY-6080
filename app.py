@@ -2,7 +2,10 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from pprint import pprint
-import chromadb
+from langchain.vectorstores import FAISS
+from langchain.docstore import InMemoryDocstore
+from langchain.embeddings import OpenAIEmbeddings
+
 import openai
 from datetime import datetime
 
@@ -190,8 +193,8 @@ openai.api_key = openai_api_key
 
 # Initialize ChromaDB client
 try:
-    chroma_client = chromadb.PersistentClient(path="db")
-    chroma_collection = chroma_client.get_or_create_collection("aly6080")
+    embeddings = OpenAIEmbeddings()
+    vector_store = FAISS.load_local("db", embeddings)
 except Exception as e:
     st.error(f"⚠️ Error connecting to the database: {str(e)}")
     st.stop()
@@ -199,9 +202,9 @@ except Exception as e:
 def rag(query, n_results=5):
     """RAG function with multi-source context"""
     try:
-        res = chroma_collection.query(query_texts=[query], n_results=n_results)
-        docs = res["documents"][0]
-        joined_information = '; '.join([f'{doc}' for doc in docs])
+        docs = vector_store.similarity_search(query, k=n_results)
+        joined_information = '; '.join([doc.page_content for doc in docs])
+
         
         messages = [
             {
